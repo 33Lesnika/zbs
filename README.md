@@ -14,6 +14,7 @@ A small collection of utilities (the `ZBS` class) for compiling, running and cle
 Example of a simple build script can be found within this repository or use the following template:
 #### **`build.java`**
 ``` java
+//This is compressed syntax for a Java source file, which comes with JDK 25+. You can also write a traditional Java class if you prefer.
 void main(String ... args) throws Exception {
     ZBS.acceptArgs(args);
     ZBS.compile("Hello.java");
