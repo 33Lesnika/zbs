@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 public final class ZBS {
     public static OutputStream os = System.out;
     public static OutputStream es = System.err;
+    // TODO: make toolchainDir configurable via env variable or config file. Autodetect installed JDKs?
     public static String toolchainDir = System.getProperty("user.home") + "\\.jdks\\openjdk-25.0.1\\bin\\";
     public static Optional<String> classpath = Optional.empty();
 
@@ -30,6 +31,7 @@ public final class ZBS {
         }
     }
 
+    // TODO: add support for multiple source files; use Java Compiler API
     public static void compile(String sourceFile) throws IOException, InterruptedException {
         if (!shouldCompile(sourceFile)) {
             log("Skipping compilation for " + sourceFile + " as it is up to date.");
@@ -45,6 +47,7 @@ public final class ZBS {
         }
     }
 
+    // TODO: merge with getRunArgs
     private static String[] getCompileArgs(String sourceFile) {
         List<String> cmd = new ArrayList<>();
         cmd.add(toolchainDir + "javac");
@@ -92,7 +95,7 @@ public final class ZBS {
                 return javaFileTime > classFileTime;
             }
         } catch (IOException e) {
-            // TODO: log error
+            log(e.getMessage());
         }
         return true;
     }
@@ -162,6 +165,7 @@ public final class ZBS {
         os.flush();
     }
 
+    // TODO: improve logging (add levels, timestamps, etc.)
     public static void log(String message) {
         try {
             os.write((message + "\n").getBytes());
@@ -170,6 +174,7 @@ public final class ZBS {
         }
     }
 
+    // TODO: improve classpath handling (support multiple paths, jars, etc.)
     public static void classpath(String path) {
         Path cp = Path.of(path).normalize();
         if (Files.isDirectory(cp)) {
