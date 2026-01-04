@@ -16,7 +16,7 @@ public final class ZBS {
     public static Optional<String> classpath = Optional.empty();
 
 
-    public ZBS() {
+    private ZBS() {
         throw new Error("no instances");
     }
 
