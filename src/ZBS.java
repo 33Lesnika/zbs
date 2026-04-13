@@ -102,11 +102,11 @@ public final class ZBS {
         return cmd.toArray(new String[0]);
     }
 
-    public static void mavenProject() throws IOException, InterruptedException {
-        mavenProject(".");
+    public static void mavenLayout() throws IOException, InterruptedException {
+        mavenLayout(".");
     }
 
-    public static void mavenProject(String projectDir) throws IOException, InterruptedException {
+    public static void mavenLayout(String projectDir) throws IOException, InterruptedException {
         Path baseDir = projectDir.equals(".") ? Path.of(".") : Path.of(projectDir);
         Path srcDir = baseDir.resolve("src/main/java");
         Path targetDir = baseDir.resolve("target/classes");
