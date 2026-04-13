@@ -4,23 +4,51 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.stream.Stream;
 
 public final class ZBS {
     public static OutputStream os = System.out;
     public static OutputStream es = System.err;
-    // TODO: make toolchainDir configurable via env variable or config file. Autodetect installed JDKs?
+    public static LogLevel logLevel = LogLevel.INFO;
+    public static String configFilePath = "zbs.properties";
+    private static Properties configProperties = null;
+    private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    
     public static String toolchainDir = initToolchainDir();
     private static String classpath = "";
 
     private static String initToolchainDir() {
-        Path toolchain = Path.of(System.getProperty("user.home"))
-                .resolve(".jdks")
-                .resolve("openjdk-25.0.1")
-                .resolve("bin");
-        return toolchain + File.separator;
+        ConfigValue zbsToolchain = readConfig("ZBS_TOOLCHAIN");
+        if (zbsToolchain instanceof ConfigValue.OK(String value, _)) {
+            Path path = Path.of(value);
+            if (Files.isDirectory(path)) {
+                return path + File.separator;
+            }
+        }
+
+        ConfigValue javaHome = readConfig("JAVA_HOME");
+        if (javaHome instanceof ConfigValue.OK(String value, _)) {
+            Path binPath = Path.of(value).resolve("bin");
+            if (Files.isDirectory(binPath)) {
+                return binPath + File.separator;
+            }
+        }
+
+        ConfigValue userHome = readConfig("user.home");
+        if (userHome instanceof ConfigValue.OK(String value, _)) {
+            Path toolchain = Path.of(value)
+                    .resolve(".jdks")
+                    .resolve("openjdk-25.0.1")
+                    .resolve("bin");
+            return toolchain + File.separator;
+        }
+
+        return "";
     }
 
 
@@ -54,7 +82,6 @@ public final class ZBS {
         }
     }
 
-    // TODO: merge with getRunArgs
     private static String[] getCompileArgs(String sourceFile) {
         List<String> cmd = new ArrayList<>();
         cmd.add(toolchainDir + "javac");
@@ -63,7 +90,6 @@ public final class ZBS {
             cmd.add(classpath);
         }
         cmd.add(sourceFile);
-//        cmd.forEach(ZBS::log);
         return cmd.toArray(new String[0]);
     }
 
@@ -87,12 +113,10 @@ public final class ZBS {
             cmd.add(classpath);
         }
         cmd.add(sourceFile);
-//        cmd.forEach(ZBS::log);
         return cmd.toArray(new String[0]);
     }
 
     private static boolean shouldCompile(String sourceFile) {
-        // Simple check: if the .class file is newer than the .java file, skip compilation
         Path javaFilePath = Path.of(sourceFile);
         String classFileName = sourceFile.replace(".java", ".class");
         Path classFilePath = Path.of(classFileName);
@@ -138,7 +162,6 @@ public final class ZBS {
                 shouldContinue = true;
             }
             if (arg.equals("clean")) {
-                // Implement clean logic if needed
                 log("Clean command received");
                 clean();
             }
@@ -174,16 +197,6 @@ public final class ZBS {
         os.flush();
     }
 
-    // TODO: improve logging (add levels, timestamps, etc.)
-    public static void log(String message) {
-        try {
-            os.write((message + "\n").getBytes());
-            os.flush();
-        } catch (IOException ignored) {
-        }
-    }
-
-    // TODO: improve classpath handling (support multiple paths, jars, etc.)
     @SuppressWarnings("unused")
     public static void classpath(String path) {
         Path cp = Path.of(path).normalize();
@@ -195,5 +208,115 @@ public final class ZBS {
                 classpath = String.join(File.pathSeparator, classpath, newPath);
             }
         }
+    }
+
+    /**
+     * Loads configuration properties from the configured file.
+     * Called automatically on first readConfig() call, can be invoked explicitly to reload.
+     */
+    @SuppressWarnings("unused")
+    public static void loadConfigProperties() {
+        configProperties = new Properties();
+        if (configFilePath == null || configFilePath.isEmpty()) {
+            return;
+        }
+        try {
+            Path configPath = Path.of(configFilePath);
+            if (Files.exists(configPath)) {
+                try (InputStream input = Files.newInputStream(configPath)) {
+                    configProperties.load(input);
+                    log("Loaded configuration from: " + configFilePath, LogLevel.INFO);
+                }
+            }
+        } catch (IOException e) {
+            log("Error reading config file: " + configFilePath + " - " + e.getMessage(), LogLevel.WARN);
+        }
+    }
+
+    /**
+     * Reads a config value from environment, config file, or system properties.
+     * Precedence: environment > config file > system property.
+     * Properties cached after first load.
+     *
+     * @param key configuration key
+     * @return ConfigValue (either Ok or Empty)
+     */
+    @SuppressWarnings("unused")
+    public static ConfigValue readConfig(String key) {
+        if (configProperties == null) {
+            loadConfigProperties();
+        }
+
+        String envValue = System.getenv(key);
+        if (envValue != null && !envValue.isEmpty()) {
+            return ConfigValue.ok(envValue, ConfigSource.ENV);
+        }
+
+        String sysProp = System.getProperty(key);
+        if (sysProp != null && !sysProp.isEmpty()) {
+            return ConfigValue.ok(sysProp, ConfigSource.ENV);
+        }
+
+        if (configProperties != null) {
+            String fileValue = configProperties.getProperty(key);
+            if (fileValue != null && !fileValue.isEmpty()) {
+                return ConfigValue.ok(fileValue, ConfigSource.FILE);
+            }
+        }
+
+        return ConfigValue.empty();
+    }
+
+    public enum ConfigSource {
+        ENV("Environment Variable"),
+        FILE("Configuration File");
+
+        private final String description;
+
+        ConfigSource(String description) {
+            this.description = description;
+        }
+
+        @SuppressWarnings("unused")
+        public String getDescription() {
+            return description;
+        }
+
+    }
+
+    public sealed interface ConfigValue {
+
+        record OK(String value, ConfigSource source) implements ConfigValue {}
+        record Empty() implements ConfigValue {}
+        static OK ok(String value, ConfigSource source) {
+            return new OK(value, source);
+        }
+
+        static Empty empty() {
+            return new Empty();
+        }
+
+    }
+
+    public static void log(String message) {
+        log(message, LogLevel.INFO);
+    }
+
+    public static void log(String message, LogLevel level) {
+        if (level.ordinal() < logLevel.ordinal()) {
+            return;
+        }
+        try {
+            String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
+            String levelStr = String.format("[%-5s]", level);
+            String formattedMessage = String.format("%s %s %s\n", timestamp, levelStr, message);
+            os.write(formattedMessage.getBytes());
+            os.flush();
+        } catch (IOException _) {
+        }
+    }
+
+    public enum LogLevel {
+        DEBUG, INFO, WARN, ERROR
     }
 }
