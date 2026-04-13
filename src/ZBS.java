@@ -61,9 +61,11 @@ public final class ZBS {
 
     public static void version() throws IOException, InterruptedException {
         Process java = Runtime.getRuntime().exec(new String[]{toolchainDir + "java", "--version"});
-        redirect(java.getInputStream(), os);
-        redirect(java.getErrorStream(), es);
+        var threads = startRedirectThreads(java);
         int exitCode = java.waitFor();
+        for (var thread : threads) {
+            thread.join();
+        }
         if (exitCode != 0) {
             throw new IOException("Version check failed with exit code " + exitCode);
         }
@@ -77,9 +79,11 @@ public final class ZBS {
         }
         String[] cmdarray = getCompileArgs(sourceFile);
         Process javac = Runtime.getRuntime().exec(cmdarray);
-        redirect(javac.getInputStream(), os);
-        redirect(javac.getErrorStream(), es);
+        var threads = startRedirectThreads(javac);
         int exitCode = javac.waitFor();
+        for (var thread : threads) {
+            thread.join();
+        }
         if (exitCode != 0) {
             throw new IOException("Compilation failed with exit code " + exitCode);
         }
@@ -99,9 +103,11 @@ public final class ZBS {
     public static void run(String cmd) throws IOException, InterruptedException {
         log("=".repeat(20) + " Running: " + cmd + " " + "=".repeat(20));
         Process java = Runtime.getRuntime().exec(getRunArgs(cmd));
-        redirect(java.getInputStream(), os);
-        redirect(java.getErrorStream(), es);
+        var threads = startRedirectThreads(java);
         int exitCode = java.waitFor();
+        for (var thread : threads) {
+            thread.join();
+        }
         if (exitCode != 0) {
             throw new IOException("Execution failed with exit code " + exitCode);
         }
@@ -137,9 +143,11 @@ public final class ZBS {
     public static void exec(String... cmd) throws IOException, InterruptedException {
         log("=".repeat(20));
         Process java = Runtime.getRuntime().exec(cmd);
-        redirect(java.getInputStream(), os);
-        redirect(java.getErrorStream(), es);
+        var threads = startRedirectThreads(java);
         int exitCode = java.waitFor();
+        for (var thread : threads) {
+            thread.join();
+        }
         if (exitCode != 0) {
             throw new IOException("Execution failed with exit code " + exitCode);
         }
@@ -189,6 +197,10 @@ public final class ZBS {
         }
     }
 
+    /**
+     * Copy InputStream to OutputStream until EOF. Used for redirecting process output to console.
+     * Do not use to redirect large files or streams of data because there is no buffering.
+     */
     public static void redirect(InputStream is, OutputStream os) throws IOException {
         byte[] buffer = new byte[1024];
         int bytesRead;
@@ -196,6 +208,24 @@ public final class ZBS {
             os.write(buffer, 0, bytesRead);
         }
         os.flush();
+    }
+
+    private static List<Thread> startRedirectThreads(Process p) {
+        var stdoutThread = Thread.ofVirtual().start(() -> {
+            try {
+                redirect(p.getInputStream(), os);
+            } catch (IOException e) {
+                log("Error redirecting stdout: " + e.getMessage(), LogLevel.ERROR);
+            }
+        });
+        var stderrThread = Thread.ofVirtual().start(() -> {
+            try {
+                redirect(p.getErrorStream(), es);
+            } catch (IOException e) {
+                log("Error redirecting stderr: " + e.getMessage(), LogLevel.ERROR);
+            }
+        });
+        return List.of(stdoutThread, stderrThread);
     }
 
     public static void classpath(String path) {
