@@ -11,7 +11,10 @@ import java.util.List;
 import java.util.Properties;
 import java.util.stream.Stream;
 
+@SuppressWarnings("unused")
 public final class ZBS {
+    public static final String VERSION = "1.0.0";
+    
     public static OutputStream os = System.out;
     public static OutputStream es = System.err;
     public static LogLevel logLevel = LogLevel.INFO;
@@ -93,7 +96,6 @@ public final class ZBS {
         return cmd.toArray(new String[0]);
     }
 
-    @SuppressWarnings("unused")
     public static void run(String cmd) throws IOException, InterruptedException {
         log("=".repeat(20) + " Running: " + cmd + " " + "=".repeat(20));
         Process java = Runtime.getRuntime().exec(getRunArgs(cmd));
@@ -132,7 +134,6 @@ public final class ZBS {
         return true;
     }
 
-    @SuppressWarnings("unused")
     public static void exec(String... cmd) throws IOException, InterruptedException {
         log("=".repeat(20));
         Process java = Runtime.getRuntime().exec(cmd);
@@ -197,7 +198,6 @@ public final class ZBS {
         os.flush();
     }
 
-    @SuppressWarnings("unused")
     public static void classpath(String path) {
         Path cp = Path.of(path).normalize();
         if (Files.isDirectory(cp)) {
@@ -214,7 +214,6 @@ public final class ZBS {
      * Loads configuration properties from the configured file.
      * Called automatically on first readConfig() call, can be invoked explicitly to reload.
      */
-    @SuppressWarnings("unused")
     public static void loadConfigProperties() {
         configProperties = new Properties();
         if (configFilePath == null || configFilePath.isEmpty()) {
@@ -241,7 +240,6 @@ public final class ZBS {
      * @param key configuration key
      * @return ConfigValue (either Ok or Empty)
      */
-    @SuppressWarnings("unused")
     public static ConfigValue readConfig(String key) {
         if (configProperties == null) {
             loadConfigProperties();
@@ -277,7 +275,6 @@ public final class ZBS {
             this.description = description;
         }
 
-        @SuppressWarnings("unused")
         public String getDescription() {
             return description;
         }
