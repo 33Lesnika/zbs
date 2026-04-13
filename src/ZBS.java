@@ -100,6 +100,62 @@ public final class ZBS {
         return cmd.toArray(new String[0]);
     }
 
+    public static void mavenProject() throws IOException, InterruptedException {
+        mavenProject(".");
+    }
+
+    public static void mavenProject(String projectDir) throws IOException, InterruptedException {
+        Path baseDir = projectDir.equals(".") ? Path.of(".") : Path.of(projectDir);
+        Path srcDir = baseDir.resolve("src/main/java");
+        Path targetDir = baseDir.resolve("target/classes");
+        Files.createDirectories(targetDir);
+
+        List<String> sourceFiles = findMavenSources(srcDir);
+
+        if (sourceFiles.isEmpty()) {
+            log("No source files found in " + srcDir);
+            return;
+        }
+        compileSources(sourceFiles, targetDir.toString());
+        classpath(targetDir.toString());
+    }
+
+    private static List<String> findMavenSources(Path srcDir) throws IOException {
+        List<String> sourceFiles = new ArrayList<>();
+        try (Stream<Path> paths = Files.walk(srcDir)) {
+            paths.filter(Files::isRegularFile)
+                 .filter(p -> p.toString().endsWith(".java"))
+                 .forEach(p -> sourceFiles.add(p.toString()));
+        }
+        return sourceFiles;
+    }
+
+    private static void compileSources(List<String> sourceFiles, String outputDir) throws IOException, InterruptedException {
+        String[] cmdarray = getMavenCompileArgs(sourceFiles, outputDir);
+        Process javac = Runtime.getRuntime().exec(cmdarray);
+        var threads = startRedirectThreads(javac);
+        int exitCode = javac.waitFor();
+        for (var thread : threads) {
+            thread.join();
+        }
+        if (exitCode != 0) {
+            throw new IOException("Maven project compilation failed with exit code " + exitCode);
+        }
+    }
+
+    private static String[] getMavenCompileArgs(List<String> sourceFiles, String outputDir) {
+        List<String> cmd = new ArrayList<>();
+        cmd.add(toolchainDir + "javac");
+        cmd.add("-d");
+        cmd.add(outputDir);
+        if (!classpath.isEmpty()) {
+            cmd.add("-cp");
+            cmd.add(classpath);
+        }
+        cmd.addAll(sourceFiles);
+        return cmd.toArray(new String[0]);
+    }
+
     public static void run(String cmd) throws IOException, InterruptedException {
         log("=".repeat(20) + " Running: " + cmd + " " + "=".repeat(20));
         Process java = Runtime.getRuntime().exec(getRunArgs(cmd));
