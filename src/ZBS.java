@@ -6,15 +6,22 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 public final class ZBS {
     public static OutputStream os = System.out;
     public static OutputStream es = System.err;
     // TODO: make toolchainDir configurable via env variable or config file. Autodetect installed JDKs?
-    public static String toolchainDir = System.getProperty("user.home") + "\\.jdks\\openjdk-25.0.1\\bin\\";
-    public static Optional<String> classpath = Optional.empty();
+    public static String toolchainDir = initToolchainDir();
+    private static String classpath = "";
+
+    private static String initToolchainDir() {
+        Path toolchain = Path.of(System.getProperty("user.home"))
+                .resolve(".jdks")
+                .resolve("openjdk-25.0.1")
+                .resolve("bin");
+        return toolchain + File.separator;
+    }
 
 
     private ZBS() {
@@ -51,15 +58,16 @@ public final class ZBS {
     private static String[] getCompileArgs(String sourceFile) {
         List<String> cmd = new ArrayList<>();
         cmd.add(toolchainDir + "javac");
-        classpath.ifPresent(cp -> {
+        if (!classpath.isEmpty()) {
             cmd.add("-cp");
-            cmd.add(cp);
-        });
+            cmd.add(classpath);
+        }
         cmd.add(sourceFile);
 //        cmd.forEach(ZBS::log);
         return cmd.toArray(new String[0]);
     }
 
+    @SuppressWarnings("unused")
     public static void run(String cmd) throws IOException, InterruptedException {
         log("=".repeat(20) + " Running: " + cmd + " " + "=".repeat(20));
         Process java = Runtime.getRuntime().exec(getRunArgs(cmd));
@@ -74,10 +82,10 @@ public final class ZBS {
     public static String[] getRunArgs(String sourceFile) {
         List<String> cmd = new ArrayList<>();
         cmd.add(toolchainDir + "java");
-        classpath.ifPresent(cp -> {
+        if (!classpath.isEmpty()) {
             cmd.add("-cp");
-            cmd.add(cp);
-        });
+            cmd.add(classpath);
+        }
         cmd.add(sourceFile);
 //        cmd.forEach(ZBS::log);
         return cmd.toArray(new String[0]);
@@ -100,6 +108,7 @@ public final class ZBS {
         return true;
     }
 
+    @SuppressWarnings("unused")
     public static void exec(String... cmd) throws IOException, InterruptedException {
         log("=".repeat(20));
         Process java = Runtime.getRuntime().exec(cmd);
@@ -111,7 +120,7 @@ public final class ZBS {
         }
     }
 
-    public static void acceptArgs(String... args) throws IOException, InterruptedException {
+    public static void acceptArgs(String... args) {
         if (args.length == 0) {
             return;
         }
@@ -175,10 +184,16 @@ public final class ZBS {
     }
 
     // TODO: improve classpath handling (support multiple paths, jars, etc.)
+    @SuppressWarnings("unused")
     public static void classpath(String path) {
         Path cp = Path.of(path).normalize();
         if (Files.isDirectory(cp)) {
-            classpath = Optional.of(String.join(File.pathSeparator, classpath.orElse(""), cp.toAbsolutePath() + File.separator + "*"));
+            String newPath = cp.toAbsolutePath() + File.separator + "*";
+            if (classpath.isEmpty()) {
+                classpath = newPath;
+            } else {
+                classpath = String.join(File.pathSeparator, classpath, newPath);
+            }
         }
     }
 }
