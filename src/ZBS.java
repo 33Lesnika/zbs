@@ -48,7 +48,9 @@ public final class ZBS {
                     .resolve(".jdks")
                     .resolve("openjdk-25.0.1")
                     .resolve("bin");
-            return toolchain + File.separator;
+            if (Files.isDirectory(toolchain)) {
+                return toolchain + File.separator;
+            }
         }
 
         return "";
@@ -287,7 +289,7 @@ public final class ZBS {
     public static void classpath(String path) {
         Path cp = Path.of(path).normalize();
         if (Files.isDirectory(cp)) {
-            String newPath = cp.toAbsolutePath() + File.separator + "*";
+            String newPath = cp.toAbsolutePath().toString();
             if (classpath.isEmpty()) {
                 classpath = newPath;
             } else {
