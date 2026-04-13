@@ -1,32 +1,38 @@
-# zbs — Minimal Java build system
+# ZBS — Zero Build System for Java
 
-A small collection of utilities (the `ZBS` class) for compiling, running and cleaning Java projects.
+## Why this exists
+I got tired of build tools that break across environments or require learning yet another DSL. ZBS lets you write build
+scripts in plain Java, using the same language you already know. Vendor the whole thing in your project - it's just one
+file - so it works everywhere there's a JDK. Bonus point for making your project future-proof against the next big build
+tool trend.
 
 ## Features
-- Uses actual programming language (Java) for build scripts
-- Timestamp-based incremental compilation
-- No external dependencies (only requires JDK)
-- Single file implementation
+- Build scripts in Java, not some yet-another-DSL in god-knows-what language
+- Incremental compilation based on file timestamps (duh)
+- Zero external dependencies
+- Everything in a single file you can modify (because you vendor it)
 
-## How to use
-1. Download the `ZBS.java` file from this repository and place it in your project directory (e.g., in a `src` folder).
-2. Create a build script (e.g., `build.java`) that uses the `ZBS` class to define build tasks.
-Example of a simple build script can be found within this repository or use the following template:
-#### **`build.java`**
-``` java
-//This is compressed syntax for a Java source file, which comes with JDK 25+. You can also write a traditional Java class if you prefer.
-void main(String ... args) throws Exception {
+## Usage
+1. Drop `ZBS.java` somewhere into your project (e.g., in `src/` or even in the root project directory).
+2. Write a build script like `build.java`:
+
+```java
+void main(String... args) throws Exception {
     ZBS.acceptArgs(args);
     ZBS.compile("Hello.java");
     ZBS.run("Hello");
 }
 ```
-3. Compile and run your build script using the JDK:
-``` bash
+
+3. Run it:
+```bash
 java build.java
 ```
 
-Note: `ZBS.acceptArgs(args)` processes command-line arguments to perform tasks like `run` and `clean` like a typical build tool.
-``` bash
+`ZBS.acceptArgs(args)` handles flags like `clean` and `run`, just like you'd expect:
+```bash
 java build.java clean run
 ```
+
+That's it. No setup, no config files, no plugins. If you need more, just edit `ZBS.java` - it's yours now.
+
